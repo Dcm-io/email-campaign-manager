@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centralized Email Campaign Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.17/mammoth.browser.min.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --info: #4895ef;
+            --warning: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            border: none;
+            margin-bottom: 25px;
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            background: linear-gradient(120deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: 600;
+            padding: 15px 20px;
+        }
+        
+        .navbar {
+            background: linear-gradient(120deg, var(--secondary), var(--primary));
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card {
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(120deg, var(--primary), var(--secondary));
+            border: none;
+        }
+        
+        .btn-outline-primary {
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .btn-outline-primary:hover {
+            background: linear-gradient(120deg, var(--primary), var(--secondary));
+            color: white;
+        }
+        
+        .progress {
+            height: 12px;
+            border-radius: 10px;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, var(--info), var(--success));
+        }
+        
+        .sender-badge {
+            background-color: #e0e7ff;
+            color: var(--primary);
+            border-radius: 20px;
+            padding: 5px 15px;
+            display: inline-flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        .template-preview {
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 300px;
+            background: white;
+            overflow: auto;
+        }
+        
+        .log-entry {
+            border-left: 3px solid var(--primary);
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            background: rgba(67, 97, 238, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .log-time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .contact-table {
+            font-size: 0.9rem;
+        }
+        
+        .contact-table th {
+            background-color: #f1f5ff;
+        }
+        
+        .step-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -10%;
+            width: 20%;
+            height: 2px;
+            background-color: var(--primary);
+            z-index: 1;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-weight: bold;
+            z-index: 2;
+            position: relative;
+        }
+        
+        .step.active .step-number {
+            background: linear-gradient(120deg, var(--success), var(--info));
+            box-shadow: 0 4px 10px rgba(76, 201, 240, 0.4);
+        }
+        
+        .step-label {
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .active .step-label {
+            color: var(--primary);
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .badge-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        
+        .badge-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-sending {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        
+        .badge-sent {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .file-upload-box {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .file-upload-box:hover {
+            border-color: var(--primary);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        .file-upload-icon {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .upload-btn-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-mail-bulk me-2"></i>
+                Email Campaign Manager
+            </a>
+            <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark me-3">
+                    <i class="fas fa-user-circle me-1"></i> Admin
+                </span>
+                <button class="btn btn-outline-light">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="step-container">
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-label">Sender Accounts</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-label">Email Template</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-label">Contact List</div>
+            </div>
+            <div class="step" id="step4">
+                <div class="step-number">4</div>
+                <div class="step-label">Send Campaign</div>
+            </div>
+        </div>
+
+        <!-- Sender Accounts Section -->
+        <div class="section active" id="senderSection">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-users me-2"></i>Manage Sender Accounts
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <h5 class="mb-3">Add New Sender Account</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email Address</label>
+                                        <input type="email" class="form-control" id="senderEmail" placeholder="yourname@yourdomain.com">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Sender Name</label>
+                                        <input type="text" class="form-control" id="senderName" placeholder="Your Name">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">SMTP Password</label>
+                                        <input type="password" class="form-control" id="smtpPassword" placeholder="••••••••">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Daily Send Limit</label>
+                                        <input type="number" class="form-control" id="dailyLimit" value="50">
+                                    </div>
+                                    <div class="col-12">
+                                        <button class="btn btn-primary" id="addSenderBtn">
+                                            <i class="fas fa-plus-circle me-2"></i>Add Sender Account
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <h5 class="mb-3">Current Sender Accounts</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Email Address</th>
+                                            <th>Sender Name</th>
+                                            <th>Daily Limit</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sendersTable">
+                                        <tr>
+                                            <td>les@prosvio.com</td>
+                                            <td>Les Smith</td>
+                                            <td>50 emails</td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>amy.market@growth-puls.com</td>
+                                            <td>Amy Johnson</td>
+                                            <td>50 emails</td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-lightbulb me-2"></i>Best Practices
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Sender Reputation Tips</h6>
+                                <ul class="mt-3">
+                                    <li>Use 4-5 different sender accounts</li>
+                                    <li>Set daily limits to 30-50 per account</li>
+                                    <li>Maintain 4-5 minute gaps between emails</li>
+                                    <li>Warm up new accounts for 2 weeks</li>
+                                    <li>Monitor bounce rates regularly</li>
+                                </ul>
+                            </div>
+                            <div class="d-grid mt-3">
+                                <button class="btn btn-outline-primary" id="nextToTemplateBtn">
+                                    Continue to Email Template <i class="fas fa-arrow-right ms-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Template Section -->
+        <div class="section" id="templateSection">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-envelope me-2"></i>Create Email Template
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <h5 class="mb-3">Upload Template</h5>
+                                <div class="file-upload-box" id="templateUploadBox">
+                                    <div class="file-upload-icon">
+                                        <i class="fas fa-file-word"></i>
+                                    </div>
+                                    <h5>Upload Word Document</h5>
+                                    <p class="text-muted">Drag & drop your .docx file here or click to browse</p>
+                                    <div class="upload-btn-wrapper">
+                                        <button class="btn btn-primary mt-2">
+                                            <i class="fas fa-cloud-upload-alt me-2"></i>Select File
+                                        </button>
+                                        <input type="file" id="templateUpload" accept=".docx">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h5 class="mb-3">Or Create HTML Template</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Email Subject</label>
+                                    <input type="text" class="form-control" id="emailSubject" placeholder="Important information for you">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email Content</label>
+                                    <textarea class="form-control" id="emailContent" rows="10" placeholder="Type your email content here..."></textarea>
+                                </div>
+                                <div class="form-text">
+                                    Use <code>{name}</code> to personalize emails with contact's name
+                                </div>
+                            </div>
+                            
+                            <h5 class="mb-3">Template Preview</h5>
+                            <div class="template-preview" id="templatePreview">
+                                <p class="text-center text-muted mt-5">Your template preview will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-eye me-2"></i>Preview Controls
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Preview Name</label>
+                                <input type="text" class="form-control" id="previewName" value="John Doe" placeholder="Enter name for personalization">
+                            </div>
+                            <button class="btn btn-primary w-100 mb-3" id="updatePreviewBtn">
+                                <i class="fas fa-sync me-2"></i>Update Preview
+                            </button>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                <button class="btn btn-outline-secondary" id="backToSendersBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Senders
+                                </button>
+                                <button class="btn btn-outline-primary" id="nextToContactsBtn">
+                                    Continue to Contact List <i class="fas fa-arrow-right ms-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact List Section -->
+        <div class="section" id="contactSection">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-address-book me-2"></i>Manage Contact List
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <h5 class="mb-3">Upload Contact List</h5>
+                                <div class="file-upload-box" id="contactUploadBox">
+                                    <div class="file-upload-icon">
+                                        <i class="fas fa-file-excel"></i>
+                                    </div>
+                                    <h5>Upload Excel File</h5>
+                                    <p class="text-muted">Drag & drop your .xlsx file here or click to browse</p>
+                                    <p class="small text-muted">File must contain columns: Email, Name, Subject</p>
+                                    <div class="upload-btn-wrapper">
+                                        <button class="btn btn-primary mt-2">
+                                            <i class="fas fa-cloud-upload-alt me-2"></i>Select File
+                                        </button>
+                                        <input type="file" id="contactUpload" accept=".xlsx,.xls,.csv">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h5 class="mb-3">Contact List Preview</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover contact-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Email</th>
+                                            <th>Name</th>
+                                            <th>Subject</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="contactListPreview">
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-5">
+                                                Upload an Excel file to preview your contacts
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-cogs me-2"></i>Campaign Settings
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Time Between Emails</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="timeGap" value="4" min="1" max="10">
+                                    <span class="input-group-text">minutes</span>
+                                </div>
+                                <div class="form-text">Recommended: 4-5 minutes to maintain sender reputation</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Start Time</label>
+                                <input type="time" class="form-control" id="startTime" value="09:00">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Daily Sending Limit</label>
+                                <input type="number" class="form-control" id="dailySendingLimit" value="100">
+                            </div>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                <button class="btn btn-outline-secondary" id="backToTemplateBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Template
+                                </button>
+                                <button class="btn btn-outline-primary" id="nextToCampaignBtn">
+                                    Continue to Campaign <i class="fas fa-arrow-right ms-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign Section -->
+        <div class="section" id="campaignSection">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-paper-plane me-2"></i>Send Campaign
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-4">
+                                <div class="col-md-3 mb-3 mb-md-0">
+                                    <div class="stat-card">
+                                        <div class="text-muted small">Total Contacts</div>
+                                        <div class="h4 mb-0" id="totalContacts">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3 mb-md-0">
+                                    <div class="stat-card">
+                                        <div class="text-muted small">Emails Sent</div>
+                                        <div class="h4 mb-0" id="sentEmails">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3 mb-md-0">
+                                    <div class="stat-card">
+                                        <div class="text-muted small">Remaining</div>
+                                        <div class="h4 mb-0" id="remainingEmails">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="text-muted small">Success Rate</div>
+                                        <div class="h4 mb-0" id="successRate">0%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Campaign Progress</span>
+                                    <span id="progressPercent">0%</span>
+                                </div>
+                                <div class="progress">
+                                    <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <h5 class="mb-3">Sending Controls</h5>
+                            <div class="d-flex gap-2 mb-4">
+                                <button class="btn btn-primary" id="startCampaignBtn">
+                                    <i class="fas fa-play me-2"></i>Start Campaign
+                                </button>
+                                <button class="btn btn-secondary" id="pauseCampaignBtn" disabled>
+                                    <i class="fas fa-pause me-2"></i>Pause
+                                </button>
+                                <button class="btn btn-warning" id="resetCampaignBtn">
+                                    <i class="fas fa-redo me-2"></i>Reset
+                                </button>
+                            </div>
+                            
+                            <h5 class="mb-3">Activity Log</h5>
+                            <div class="log-container" id="logContainer" style="max-height: 300px; overflow-y: auto;">
+                                <div class="log-entry">
+                                    <div class="log-time">System: Ready to start campaign</div>
+                                    <div>Upload contacts and configure settings to begin</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-info-circle me-2"></i>Campaign Information
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <h6>Sender Accounts</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <span class="sender-badge">les@prosvio.com</span>
+                                    <span class="sender-badge">amy.market@growth-puls.com</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6>Email Template</h6>
+                                <div class="small">Subject: <span id="campaignSubject">Not set</span></div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6>Sending Settings</h6>
+                                <ul class="small">
+                                    <li>Time between emails: <span id="campaignTimeGap">4</span> minutes</li>
+                                    <li>Daily sending limit: <span id="campaignDailyLimit">100</span> emails</li>
+                                    <li>Start time: <span id="campaignStartTime">09:00 AM</span></li>
+                                </ul>
+                            </div>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                <button class="btn btn-outline-secondary" id="backToContactsBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Contacts
+                                </button>
+                                <button class="btn btn-outline-primary" id="scheduleCampaignBtn">
+                                    <i class="fas fa-calendar-check me-2"></i>Schedule Campaign
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigation between sections
+        document.getElementById('nextToTemplateBtn').addEventListener('click', function() {
+            navigateToSection('templateSection', 'step2');
+        });
+        
+        document.getElementById('backToSendersBtn').addEventListener('click', function() {
+            navigateToSection('senderSection', 'step1');
+        });
+        
+        document.getElementById('nextToContactsBtn').addEventListener('click', function() {
+            navigateToSection('contactSection', 'step3');
+        });
+        
+        document.getElementById('backToTemplateBtn').addEventListener('click', function() {
+            navigateToSection('templateSection', 'step2');
+        });
+        
+        document.getElementById('nextToCampaignBtn').addEventListener('click', function() {
+            navigateToSection('campaignSection', 'step4');
+        });
+        
+        document.getElementById('backToContactsBtn').addEventListener('click', function() {
+            navigateToSection('contactSection', 'step3');
+        });
+        
+        function navigateToSection(sectionId, stepId) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show target section
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Update active step
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(stepId).classList.add('active');
+        }
+        
+        // Template preview functionality
+        document.getElementById('updatePreviewBtn').addEventListener('click', function() {
+            const name = document.getElementById('previewName').value || 'John Doe';
+            const content = document.getElementById('emailContent').value || 
+                '<p>Hello {name},</p><p>This is a sample email template.</p><p>Regards,<br>Your Team</p>';
+            
+            const previewContent = content.replace(/{name}/g, name);
+            document.getElementById('templatePreview').innerHTML = previewContent;
+        });
+        
+        // Contact list upload
+        document.getElementById('contactUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Update preview table
+                    const tableBody = document.getElementById('contactListPreview');
+                    tableBody.innerHTML = '';
+                    
+                    jsonData.slice(0, 5).forEach((row, index) => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${row.Email || row.email || ''}</td>
+                            <td>${row.Name || row.name || ''}</td>
+                            <td>${row.Subject || row.subject || ''}</td>
+                            <td><span class="badge-status badge-pending">Pending</span></td>
+                        `;
+                        tableBody.appendChild(tr);
+                    });
+                    
+                    if (jsonData.length > 5) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td colspan="5" class="text-center text-muted">
+                                + ${jsonData.length - 5} more contacts
+                            </td>
+                        `;
+                        tableBody.appendChild(tr);
+                    }
+                    
+                    // Update stats
+                    document.getElementById('totalContacts').textContent = jsonData.length;
+                    document.getElementById('sentEmails').textContent = '0';
+                    document.getElementById('remainingEmails').textContent = jsonData.length;
+                    document.getElementById('successRate').textContent = '0%';
+                    
+                    // Update campaign info
+                    document.getElementById('campaignSubject').textContent = 
+                        document.getElementById('emailSubject').value || 'Not set';
+                    document.getElementById('campaignTimeGap').textContent = 
+                        document.getElementById('timeGap').value;
+                    document.getElementById('campaignDailyLimit').textContent = 
+                        document.getElementById('dailySendingLimit').value;
+                    
+                    // Convert time to 12-hour format
+                    const timeValue = document.getElementById('startTime').value;
+                    const [hours, minutes] = timeValue.split(':');
+                    let hours12 = hours % 12 || 12;
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    document.getElementById('campaignStartTime').textContent = 
+                        `${hours12}:${minutes} ${ampm}`;
+                    
+                    // Add log entry
+                    addLogEntry(`Successfully uploaded ${jsonData.length} contacts`);
+                    
+                } catch (error) {
+                    addLogEntry(`Error importing contacts: ${error.message}`);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        
+        // Word template upload (simulated)
+        document.getElementById('templateUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            addLogEntry(`Word template uploaded: ${file.name}`);
+            
+            // In a real implementation, we would use mammoth.js to convert to HTML
+            // For this demo, we'll just simulate
+            document.getElementById('templatePreview').innerHTML = `
+                <h3>Template Preview</h3>
+                <p>This is a simulated preview of your Word document.</p>
+                <p>Hello {name},</p>
+                <p>Thank you for your interest in our services. We're excited to share more information with you.</p>
+                <p>Best regards,<br>Your Team</p>
+            `;
+        });
+        
+        // Campaign controls
+        let campaignActive = false;
+        let sentCount = 0;
+        let successCount = 0;
+        let totalContacts = 0;
+        
+        document.getElementById('startCampaignBtn').addEventListener('click', function() {
+            totalContacts = parseInt(document.getElementById('totalContacts').textContent) || 0;
+            if (totalContacts === 0) {
+                addLogEntry('Error: Please upload contacts before starting campaign');
+                return;
+            }
+            
+            campaignActive = true;
+            this.disabled = true;
+            document.getElementById('pauseCampaignBtn').disabled = false;
+            
+            addLogEntry('Campaign started! Emails will be sent with rotation between accounts.');
+            
+            // Start processing emails
+            processNextEmail();
+        });
+        
+        document.getElementById('pauseCampaignBtn').addEventListener('click', function() {
+            campaignActive = false;
+            this.disabled = true;
+            document.getElementById('startCampaignBtn').disabled = false;
+            
+            addLogEntry('Campaign paused');
+        });
+        
+        document.getElementById('resetCampaignBtn').addEventListener('click', function() {
+            campaignActive = false;
+            sentCount = 0;
+            successCount = 0;
+            
+            document.getElementById('sentEmails').textContent = '0';
+            document.getElementById('remainingEmails').textContent = totalContacts;
+            document.getElementById('successRate').textContent = '0%';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressPercent').textContent = '0%';
+            
+            document.getElementById('startCampaignBtn').disabled = false;
+            document.getElementById('pauseCampaignBtn').disabled = true;
+            
+            addLogEntry('Campaign has been reset');
+        });
+        
+        function processNextEmail() {
+            if (!campaignActive || sentCount >= totalContacts) {
+                // Campaign completed
+                campaignActive = false;
+                document.getElementById('startCampaignBtn').disabled = false;
+                document.getElementById('pauseCampaignBtn').disabled = true;
+                addLogEntry('Campaign completed!');
+                return;
+            }
+            
+            const minDelay = parseInt(document.getElementById('timeGap').value) * 60000 || 240000;
+            const maxDelay = minDelay + 60000; // Add 1 minute for variation
+            
+            // Determine which sender to use (alternating between accounts)
+            const sender = sentCount % 2 === 0 ? 'les@prosvio.com' : 'amy.market@growth-puls.com';
+            
+            // Simulate sending delay
+            setTimeout(() => {
+                // Simulate sending success (90% success rate)
+                const success = Math.random() > 0.1;
+                
+                if (success) {
+                    successCount++;
+                }
+                
+                sentCount++;
+                
+                // Update stats
+                document.getElementById('sentEmails').textContent = sentCount;
+                document.getElementById('remainingEmails').textContent = totalContacts - sentCount;
+                
+                const successRate = Math.round((successCount / sentCount) * 100);
+                document.getElementById('successRate').textContent = `${successRate}%`;
+                
+                const progress = Math.round((sentCount / totalContacts) * 100);
+                document.getElementById('progressBar').style.width = `${progress}%`;
+                document.getElementById('progressPercent').textContent = `${progress}%`;
+                
+                // Log the activity
+                const action = success ? 'sent' : 'failed to send';
+                addLogEntry(`${sender} ${action} email ${sentCount} of ${totalContacts}`);
+                
+                // Process next email
+                processNextEmail();
+            }, Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay);
+        }
+        
+        // Add log entry
+        function addLogEntry(message) {
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <div class="log-time">${timestamp}:</div>
+                <div>${message}</div>
+            `;
+            
+            document.getElementById('logContainer').prepend(logEntry);
+            
+            // Keep log to 50 entries max
+            if (document.getElementById('logContainer').children.length > 50) {
+                document.getElementById('logContainer').removeChild(
+                    document.getElementById('logContainer').lastChild
+                );
+            }
+        }
+        
+        // Initialize template preview
+        document.getElementById('updatePreviewBtn').click();
+    </script>
+</body>
+</html>
